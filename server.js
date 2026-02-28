@@ -5,24 +5,31 @@ require('dotenv').config();
 
 const app = express();
 
-// 1. CORS CONFIGURATION: Explicitly allow your GitHub frontend
+// 1. CORS CONFIGURATION
 app.use(cors({
     origin: 'https://je9samson.github.io',
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 
-// 2. DATABASE CONNECTION: Using the Public Proxy from your screenshot
+// LOGGING MIDDLEWARE: This will show every request in your Render Logs
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} request to ${req.url}`);
+    next();
+});
+
+// 2. DATABASE CONNECTION
 const db = mysql.createPool({
-    host: process.env.DB_HOST,      // caboose.proxy.rlwy.net
-    port: process.env.DB_PORT,      // 55455
-    user: process.env.DB_USER,      // root
+    host: process.env.DB_HOST,      
+    port: process.env.DB_PORT,      
+    user: process.env.DB_USER,      
     password: process.env.DB_PASSWORD, 
-    database: process.env.DB_NAME,  // railway
+    database: process.env.DB_NAME,  
     waitForConnections: true,
-    connectionLimit: 10
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
 // Test connection
@@ -35,22 +42,34 @@ db.getConnection((err, connection) => {
     }
 });
 
-// 3. MOOD ROUTE: Endpoint to save mood data
+// 3. ROUTES
+// Root route - This MUST work for the 404 to go away
+app.get('/', (req, res) => {
+    res.status(200).send("Backend is Live and Connected!");
+});
+
+// Mood route
 app.post('/moods', (req, res) => {
     const { mood_type } = req.body;
-    if (!mood_type) return res.status(400).json({ error: "Mood type is required" });
+    console.log("📥 Received mood data:", mood_type);
+
+    if (!mood_type) {
+        return res.status(400).json({ error: "Mood type is required" });
+    }
 
     const query = 'INSERT INTO moods (mood_type) VALUES (?)';
     db.query(query, [mood_type], (err, result) => {
         if (err) {
-            console.error("❌ SQL Error:", err);
+            console.error("❌ SQL Error during insertion:", err);
             return res.status(500).json({ error: "Database error" });
         }
+        console.log("🚀 Mood saved! ID:", result.insertId);
         res.status(201).json({ message: "Mood saved!", id: result.insertId });
     });
 });
 
-app.get('/', (req, res) => res.send("Backend is Live and Connected!"));
-
+// 4. START SERVER
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+});
