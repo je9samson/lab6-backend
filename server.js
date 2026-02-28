@@ -5,22 +5,16 @@ require('dotenv').config();
 
 const app = express();
 
-// 1. CORS CONFIGURATION
 app.use(cors({
     origin: 'https://je9samson.github.io',
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 
 app.use(express.json());
 
-// LOGGING MIDDLEWARE: This will show every request in your Render Logs
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} request to ${req.url}`);
-    next();
-});
-
-// 2. DATABASE CONNECTION
+// DATABASE POOL with specific Timeout for Railway
 const db = mysql.createPool({
     host: process.env.DB_HOST,      
     port: process.env.DB_PORT,      
@@ -29,47 +23,29 @@ const db = mysql.createPool({
     database: process.env.DB_NAME,  
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    connectTimeout: 15000 // Give it 15 seconds to find Railway
 });
 
-// Test connection
+// THIS IS THE LOG YOU ARE LOOKING FOR
 db.getConnection((err, connection) => {
     if (err) {
-        console.error("❌ Database connection failed:", err.message);
+        console.error("❌ DATABASE CONNECTION FAILED:", err.message);
+        console.error("Check if DB_PORT is 55455 and DB_HOST is caboose.proxy.rlwy.net");
     } else {
-        console.log("✅ Connected to Railway MySQL via Public Proxy!");
+        console.log("✅ SUCCESS: Connected to Railway MySQL!");
         connection.release();
     }
 });
 
-// 3. ROUTES
-// Root route - This MUST work for the 404 to go away
-app.get('/', (req, res) => {
-    res.status(200).send("Backend is Live and Connected!");
-});
+app.get('/', (req, res) => res.send("Backend is Live! Waiting for DB..."));
 
-// Mood route
 app.post('/moods', (req, res) => {
     const { mood_type } = req.body;
-    console.log("📥 Received mood data:", mood_type);
-
-    if (!mood_type) {
-        return res.status(400).json({ error: "Mood type is required" });
-    }
-
-    const query = 'INSERT INTO moods (mood_type) VALUES (?)';
-    db.query(query, [mood_type], (err, result) => {
-        if (err) {
-            console.error("❌ SQL Error during insertion:", err);
-            return res.status(500).json({ error: "Database error" });
-        }
-        console.log("🚀 Mood saved! ID:", result.insertId);
-        res.status(201).json({ message: "Mood saved!", id: result.insertId });
+    db.query('INSERT INTO moods (mood_type) VALUES (?)', [mood_type], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ message: "Saved!" });
     });
 });
 
-// 4. START SERVER
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server on port ${PORT}`));
