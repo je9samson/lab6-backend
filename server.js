@@ -6,7 +6,7 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-    origin: 'https://je9samson.github.io', // No trailing slash here either!
+    origin: '*', // No trailing slash here either!
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
