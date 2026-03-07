@@ -6,7 +6,7 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-    origin: 'https://je9samson.github.io',
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -14,7 +14,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// DATABASE POOL with specific Timeout for Railway
 const db = mysql.createPool({
     host: process.env.DB_HOST,      
     port: process.env.DB_PORT,      
@@ -23,29 +22,47 @@ const db = mysql.createPool({
     database: process.env.DB_NAME,  
     waitForConnections: true,
     connectionLimit: 10,
-    connectTimeout: 15000 // Give it 15 seconds to find Railway
+    connectTimeout: 15000 
 });
 
-// THIS IS THE LOG YOU ARE LOOKING FOR
 db.getConnection((err, connection) => {
     if (err) {
         console.error("❌ DATABASE CONNECTION FAILED:", err.message);
-        console.error("Check if DB_PORT is 55455 and DB_HOST is caboose.proxy.rlwy.net");
     } else {
         console.log("✅ SUCCESS: Connected to Railway MySQL!");
         connection.release();
     }
 });
 
-app.get('/', (req, res) => res.send("Backend is Live! Waiting for DB..."));
+app.get('/', (req, res) => res.send("Backend is Live!"));
 
+// --- FIXED POST ROUTE ---
+// REPLACE your current /moods routes with these:
+
+// Replace your existing /moods routes with these
 app.post('/moods', (req, res) => {
-    const { mood_type } = req.body;
-    db.query('INSERT INTO moods (mood_type) VALUES (?)', [mood_type], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ message: "Saved!" });
-    });
+    const { full_name, mood_text } = req.body; 
+
+    db.query(
+        'INSERT INTO moods (full_name, mood_text) VALUES (?, ?)', 
+        [full_name, mood_text], 
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // This aiMessage stops the loading spinner on your website
+            res.status(201).json({ 
+                message: "Saved!", 
+                aiMessage: "I've noted your mood. Take a deep breath and stay mindful! 🌿" 
+            });
+        }
+    );
 });
 
+app.get('/moods', (req, res) => {
+    db.query('SELECT * FROM moods ORDER BY created_at DESC', (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server on port ${PORT}`));
