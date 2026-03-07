@@ -3,12 +3,12 @@ const mysql = require('mysql2');
 const cors = require('cors');
 require('dotenv').config();
 
-const app = express();
+const cors = require('cors');
 
 app.use(cors({
-    origin: '*', // No trailing slash here either!
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin: 'https://je9samson.github.io',
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
 }));
 
 app.use(express.json());
