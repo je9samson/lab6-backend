@@ -1,14 +1,16 @@
 const express = require('express');
 const mysql = require('mysql2');
-const cors = require('cors');
+const cors = require('cors'); // Make sure this is only here ONCE
 require('dotenv').config();
 
-const cors = require('cors');
+const app = express();
+app.use(express.json());
 
+// Just one CORS block
 app.use(cors({
     origin: 'https://je9samson.github.io',
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
